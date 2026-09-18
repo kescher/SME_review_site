@@ -12,8 +12,6 @@ export const CONFIG = {
   // Authorised JavaScript origin must include your GitHub Pages URL.
   CLIENT_ID: '711515548082-afm59b0jgon9t9732r9njuhr43lfi76g.apps.googleusercontent.com',
 
-// client secret: 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
-
   // Scopes requested from the reviewer's own Google account.
   //
   // This is the minimum the app actually uses: case data comes from
