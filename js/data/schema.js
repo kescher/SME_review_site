@@ -18,13 +18,17 @@ export class NotConfigured extends Error {}
 export const normDomain = s =>
   String(s ?? '').toLowerCase().trim().replace(/[\s-]+/g, '_');
 
-export async function loadAssignment(profile) {
+/**
+ * Validate the reviewer against the roster and return the whole study, so the
+ * chooser can offer every area. The domain itself is picked afterwards.
+ */
+export async function loadReviewer(profile) {
   const study = await loadStudy();
 
   // Demo mode skips the roster so the workflow can be previewed without an
   // account. It exposes nothing that data/study.json does not already serve.
   const me = CONFIG.DEMO
-    ? demoReviewer(study)
+    ? { name: 'Demo Reviewer', domain: CONFIG.DEMO_DOMAIN }
     : study.reviewers.find(r => r.email.toLowerCase() === profile.email.toLowerCase());
 
   if (!me) {
@@ -32,32 +36,51 @@ export async function loadAssignment(profile) {
       `${profile.email} is not on the reviewer roster for this study.`);
   }
 
-  const domain = normDomain(me.domain);
-  const bucket = study.domains[domain];
+  const domains = Object.entries(study.domains || {})
+    .filter(([, d]) => d.cases?.length)
+    .map(([key, d]) => ({
+      key,
+      label: d.label || DOMAINS[key] || key,
+      cases: d.cases.length,
+      transcripts: d.cases.reduce((n, c) => n + c.transcripts.length, 0),
+    }));
 
-  if (!bucket || !bucket.cases.length) {
-    throw new NotConfigured(
-      `No cases are configured for the "${DOMAINS[domain] || me.domain || domain}" ` +
-      'domain yet.');
+  if (!domains.length) {
+    throw new NotConfigured('No cases are configured for any domain yet.');
   }
 
+  // A domain on the roster is a default for the chooser, not a restriction.
+  const suggested = normDomain(me.domain || '');
+
   return {
-    reviewer: {
-      email: profile.email,
-      name: me.name || profile.name,
-      domain,
-      domainLabel: bucket.label || DOMAINS[domain] || me.domain,
-    },
-    cases: bucket.cases.map(withRefs),
+    study,
+    reviewer: { email: profile.email, name: me.name || profile.name },
+    domains,
+    suggested: domains.some(d => d.key === suggested) ? suggested : '',
   };
 }
 
-/** Attach the stable "caseId/transcriptId" key used for drafts and progress. */
-const withRefs = c => ({
+/** The cases for one domain, with progress keys attached. */
+export function casesFor(study, domainKey) {
+  const bucket = study.domains?.[domainKey];
+  if (!bucket) return [];
+  return bucket.cases.map(c => withRefs(c, domainKey));
+}
+
+export const labelFor = (study, domainKey) =>
+  study.domains?.[domainKey]?.label || DOMAINS[domainKey] || domainKey;
+
+/**
+ * Attach the progress key used for drafts and for the marker written into the
+ * answer document. Domain-qualified, because case ids repeat across domains
+ * (every domain has a "case-1") and a reviewer may cover more than one.
+ */
+const withRefs = (c, domain) => ({
   ...c,
+  domain,
   transcripts: c.transcripts
     .slice(0, CONFIG.TRANSCRIPTS_PER_CASE)
-    .map((t, i) => ({ ...t, number: i + 1, ref: `${c.id}/${t.id}` })),
+    .map((t, i) => ({ ...t, number: i + 1, ref: `${domain}/${c.id}/${t.id}` })),
 });
 
 /* -- sources -------------------------------------------------------------- */
@@ -65,18 +88,6 @@ const withRefs = c => ({
 async function loadStudy() {
   if (CONFIG.DATA_SOURCE === 'sheets') return loadFromSheets();
   return loadStatic();
-}
-
-/** In demo mode, review the domain named by CONFIG.DEMO_DOMAIN, or the first. */
-function demoReviewer(study) {
-  const available = Object.keys(study.domains || {});
-  const domain = available.includes(CONFIG.DEMO_DOMAIN)
-    ? CONFIG.DEMO_DOMAIN
-    : available[0];
-
-  if (!domain) return null;
-  // Only name and domain are read; the email comes from the signed-in profile.
-  return { name: 'Demo Reviewer', domain };
 }
 
 async function loadStatic() {
@@ -92,6 +103,13 @@ async function loadStatic() {
 /* -- live spreadsheet ----------------------------------------------------- */
 
 async function loadFromSheets() {
+  if (!CONFIG.SCOPES.includes('spreadsheets')) {
+    throw new NotConfigured(
+      "DATA_SOURCE is 'sheets', but CONFIG.SCOPES no longer requests " +
+      "spreadsheets.readonly (and drive.readonly for Drive-hosted PDFs). " +
+      'Add them back, or use the default static source.');
+  }
+
   const tabs = [CONFIG.REVIEWERS_TAB, ...Object.values(CONFIG.DOMAIN_TABS)];
   const [tables, pdfIndex] = await Promise.all([
     readTabs(tabs),

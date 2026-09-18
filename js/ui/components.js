@@ -5,7 +5,9 @@ import { el } from '../util.js';
 import { state, counts } from '../data/store.js';
 import { opinionButton } from './opinion.js';
 
-export function topbar({ crumb, onSignOut, overview = true }) {
+export function topbar({ crumb, onSignOut, overview = true, domain = true }) {
+  const showDomain = domain && state.reviewer?.domainLabel;
+
   return el('header', { class: 'topbar' }, [
     el('h1', {}, 'SME Review'),
     crumb ? el('span', { class: 'crumb' }, `— ${crumb}`) : null,
@@ -13,7 +15,13 @@ export function topbar({ crumb, onSignOut, overview = true }) {
     el('div', { class: 'spacer' }),
     el('div', { class: 'who' }, [
       overview ? el('a', { class: 'link', href: '#/welcome' }, 'Project overview') : null,
-      state.reviewer ? `${state.reviewer.name} · ${state.reviewer.domainLabel}` : '',
+      state.reviewer ? state.reviewer.name : '',
+      showDomain
+        ? el('a', {
+            class: 'domainpill', href: '#/domain',
+            title: 'Change your area of expertise',
+          }, [state.reviewer.domainLabel, el('span', { class: 'caret' }, '▾')])
+        : null,
       onSignOut ? el('button', { class: 'link', onclick: onSignOut }, 'Sign out') : null,
     ]),
   ]);
@@ -32,9 +40,9 @@ export function rail(theCase, currentIndex) {
 
   return el('div', { class: 'rail' }, [
     el('span', {}, `Case ${position} of ${state.cases.length}: ${theCase.title}`),
+    opinionButton(theCase, { className: 'railbtn', label: 'Read judicial opinion' }),
     el('div', { class: 'pips' }, pips),
     el('div', { class: 'spacer', style: 'flex:1' }),
-    opinionButton(theCase, { class: 'railbtn', className: 'railbtn' }),
     el('span', {}, `${done} of ${total} transcripts reviewed`),
   ]);
 }

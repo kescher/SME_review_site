@@ -154,6 +154,13 @@ function parseDomain(folder) {
       instructions: '',
       opinionPath: '',
       opinionName: '',
+      // The same rubric applies to all five transcripts, so the case page can
+      // show it beside the prompts.
+      rubric: {
+        prompt: parseRubricCell(rubric[0]),
+        followup1: parseRubricCell(rubric[1]),
+        followup2: parseRubricCell(rubric[2]),
+      },
       transcripts,
     });
   }
@@ -216,7 +223,9 @@ function indexOpinions() {
 function loadOverrides() {
   if (!fs.existsSync(OVERRIDES)) return new Map();
   const raw = JSON.parse(fs.readFileSync(OVERRIDES, 'utf8'));
-  return new Map(Object.entries(raw).map(([k, v]) => [k.toLowerCase(), v]));
+  return new Map(Object.entries(raw)
+    .filter(([k]) => !k.startsWith('_'))            // allow comment keys
+    .map(([k, v]) => [k.toLowerCase(), v]));
 }
 
 /* Words too common to identify a case by. */
@@ -313,8 +322,11 @@ async function main() {
                   || overrides.get(`${key}/${c.id}`.toLowerCase());
 
       if (pinned) {
-        const rel = pinned.replace(/^cases[/\\]/, '');
-        if (!fs.existsSync(path.join(OPINIONS, rel))) {
+        // Accept the path written from the project root or from inside cases/.
+        const candidates = [pinned, pinned.replace(/^cases[/\\]/, '')];
+        const rel = candidates.find(r => fs.existsSync(path.join(OPINIONS, r)));
+
+        if (!rel) {
           warnings.push(`opinions.json points "${c.title}" at ${pinned}, which does not exist`);
         } else {
           c.opinionPath = `cases/${encode(rel)}`;

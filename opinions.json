@@ -1,5 +1,5 @@
 {
-  "_comment": "Opinion PDFs whose file name cannot identify the case. Keys are the case title (as the builder prints it) or \"<domain>/<case-id>\"; values are paths under cases/.",
+  "_comment": "Opinion PDFs whose file name cannot identify the case. Keys are the case title (as the builder prints it) or \"<domain>/<case-id>\"; values are the path the builder reports, e.g. cases/Foreclosure/x.pdf.",
 
-  "Disciplinary Couns. v. Foreclosure Alternatives, Inc.": "cases/Foreclosure/671675.pdf"
+  "Disciplinary Couns. v. Foreclosure Alternatives, Inc.": "cases/cases/Foreclosure/671675.pdf"
 }

@@ -12,11 +12,14 @@ import { findDocByName, moveToFolder, shareWith } from './drive.js';
 
 const DOCS = 'https://docs.googleapis.com/v1/documents';
 
+/** Non-fatal problems filing the doc, surfaced once after sign-in. */
+export const filingWarnings = [];
+
 export const docTitle = ({ name, email }) =>
   CONFIG.DOC_TITLE.replace('{name}', name || email).replace('{email}', email);
 
 /** Find the reviewer's doc or create, file and share a new one. */
-export async function ensureDoc(profile, domainLabel) {
+export async function ensureDoc(profile) {
   const title = docTitle(profile);
 
   const existing = await findDocByName(title);
@@ -25,12 +28,30 @@ export async function ensureDoc(profile, domainLabel) {
   const doc = await apiJson(DOCS, 'POST', { title });
   const docId = doc.documentId;
 
-  await moveToFolder(docId, CONFIG.RESPONSES_FOLDER_ID);
-  await shareWith(docId, CONFIG.ADMIN_EMAIL);
+  // Filing is best-effort: if the reviewer has not been given Editor access to
+  // the responses folder, the move fails, but their answers must still be
+  // recorded. The doc stays in their own Drive and can be collected later.
+  try {
+    await moveToFolder(docId, CONFIG.RESPONSES_FOLDER_ID);
+  } catch (err) {
+    console.warn('Could not move the answer doc into the responses folder.', err);
+    filingWarnings.push(
+      'Your review document could not be filed in the study folder — check ' +
+      'with the study administrator that you have edit access to it. Your ' +
+      'answers are still being saved.');
+  }
 
+  try {
+    await shareWith(docId, CONFIG.ADMIN_EMAIL);
+  } catch (err) {
+    console.warn('Could not share the answer doc with the administrator.', err);
+  }
+
+  // No domain in the header: a reviewer may cover more than one, and each
+  // submission names its own.
   await appendBlocks(docId, [
     { type: 'h1', text: title },
-    { type: 'p',  text: `${domainLabel} · ${profile.email}` },
+    { type: 'p',  text: profile.email },
     { type: 'p',  text: `Started ${new Date().toLocaleString()}` },
   ]);
 

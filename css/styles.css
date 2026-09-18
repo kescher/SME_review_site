@@ -73,6 +73,14 @@ body {
 .topbar .who { font-size: 13px; color: #cddcf0; display: flex; align-items: center; gap: 10px; }
 .topbar .link { color: #a9c2e3; }
 .topbar a.link { text-decoration: underline; }
+.domainpill {
+  display: inline-flex; align-items: center; gap: 5px;
+  background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.26);
+  color: #fff; border-radius: 999px; padding: 2px 10px;
+  font-size: 12.5px; font-weight: 600; text-decoration: none;
+}
+.domainpill:hover { background: rgba(255,255,255,.22); }
+.domainpill .caret { opacity: .7; font-size: 10px; }
 .demo-chip {
   background: #7a4b00; color: #ffd591; border: 1px solid #a86c12;
   font-size: 11px; font-weight: 700; letter-spacing: .5px;
@@ -174,7 +182,10 @@ button.link {
 .prose h3 { margin-top: 24px; }
 .prose h3:first-child { margin-top: 0; }
 .prose .muted { color: var(--text-faint); font-size: 13.5px; }
-.cite { font-style: italic; font-size: 14px; }
+.cite { font-style: italic; }
+.overview { margin: 4px 0 20px; max-width: 62ch; }
+.overview p { margin: 0 0 8px; font-size: 15.5px; }
+.overview p.muted { font-size: 14px; color: var(--text-soft); }
 .quote {
   margin: 0 0 14px; padding: 12px 16px;
   background: #f7f9fc; border-left: 3px solid var(--accent);
@@ -183,6 +194,50 @@ button.link {
 .quote .juris { color: var(--text-faint); }
 ol.turns { padding-left: 22px; }
 ol.turns li { margin-bottom: 7px; }
+
+/* prompts paired with their rubric, on the case page */
+.tablewrap {
+  /* break out of the card's padding so three columns have room */
+  margin: 10px -16px 4px;
+  overflow-x: auto;
+}
+.rubrictable {
+  width: 100%; border-collapse: collapse;
+  font-size: 13.5px; line-height: 1.5;
+  min-width: 660px;
+}
+.rubrictable th, .rubrictable td {
+  text-align: left; vertical-align: top;
+  padding: 10px 14px; border-top: 1px solid var(--border-soft);
+}
+.rubrictable .grouprow td { border: none; padding: 0; }
+.rubrictable th.group {
+  border-top: none; border-bottom: none;
+  background: #eef4fb; border-radius: 5px 5px 0 0;
+  text-align: center; color: var(--accent);
+  font-size: 11px; font-weight: 700; letter-spacing: .9px;
+  text-transform: uppercase; padding: 5px 14px;
+}
+.rubrictable thead tr:last-child th {
+  border-top: none; border-bottom: 2px solid var(--border);
+  font-size: 11px; font-weight: 700; letter-spacing: .7px;
+  text-transform: uppercase; color: var(--text-faint);
+  padding-bottom: 6px; white-space: nowrap;
+}
+.rubrictable thead th.no  { color: var(--good); background: #eef4fb; }
+.rubrictable thead th.yes { color: var(--bad);  background: #eef4fb; }
+.rubrictable tbody th {
+  font-weight: 400; width: 34%;
+  background: #fbfcfe;
+}
+.rubrictable tbody tr:hover th { background: #f5f8fc; }
+.turnlabel {
+  font-size: 11px; font-weight: 700; letter-spacing: .6px;
+  text-transform: uppercase; color: var(--accent); margin-bottom: 3px;
+}
+.rubrictable ul { margin: 0; padding-left: 16px; color: var(--text-soft); }
+.rubrictable li { margin-bottom: 5px; }
+.rubrictable li:last-child { margin-bottom: 0; }
 dl.brief { margin: 0; }
 dl.brief dt {
   font-size: 11.5px; font-weight: 700; letter-spacing: .7px;
@@ -194,6 +249,25 @@ dl.brief dd { margin: 4px 0 0; color: var(--text-soft); }
 .prose h4 { font-size: 14.5px; margin: 20px 0 6px; }
 .note.center { text-align: center; }
 .prose .sub-intro { color: var(--text-soft); margin-top: -2px; }
+
+/* opinion link, leading the case page */
+.opinionbar {
+  display: flex; align-items: center; gap: 12px;
+  margin: 0 0 18px;
+}
+.opinionlink {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: #eef4fb; border: 1px solid #cfdff2;
+  color: var(--accent); border-radius: 6px;
+  padding: 9px 16px; font-size: 14.5px; font-weight: 600;
+}
+.opinionlink::before { content: '\2696'; font-size: 16px; }
+.opinionlink:hover { background: #e2ecf8; border-color: #b5cfec; }
+.opinionhint { font-size: 13px; color: var(--text-faint); }
+
+@media (max-width: 560px) {
+  .opinionbar { flex-direction: column; align-items: flex-start; gap: 6px; }
+}
 ol.steps > li.step ul { margin-top: 8px; }
 ol.steps > li.step ul li { margin-bottom: 8px; }
 .pull {
@@ -248,6 +322,37 @@ details.more[open] > summary { margin-bottom: 10px; }
 .actions { display: flex; justify-content: flex-end; align-items: center; gap: 12px; margin-top: 26px; }
 .actions .save { flex: 1; text-align: left; font-size: 12.5px; color: var(--text-faint); }
 .actions .save.ok { color: var(--good); }
+
+/* -- domain chooser ------------------------------------------------------- */
+.domaingrid {
+  display: grid; gap: 12px; margin: 26px 0 8px;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+}
+.domaincard {
+  text-align: left; font: inherit;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); box-shadow: var(--shadow);
+  padding: 18px 18px 16px;
+  transition: border-color .12s, box-shadow .12s, transform .12s;
+}
+.domaincard:hover {
+  border-color: var(--accent);
+  box-shadow: 0 2px 6px rgba(16,43,78,.12), 0 10px 24px rgba(16,43,78,.10);
+  transform: translateY(-1px);
+}
+.domaincard.current { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(47,109,181,.14); }
+.dname { font-size: 16px; font-weight: 650; margin-bottom: 4px; }
+.dmeta { font-size: 13px; color: var(--text-faint); }
+.dprogress {
+  margin-top: 10px; font-size: 12.5px; font-weight: 600; color: var(--accent);
+}
+.dprogress.done { color: var(--good); }
+.dsuggested {
+  margin-top: 10px; display: inline-block;
+  font-size: 11px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase;
+  background: #eef4fb; color: var(--accent);
+  border-radius: 999px; padding: 2px 9px;
+}
 
 /* -- review split -------------------------------------------------------- */
 .split { flex: 1 1 auto; display: flex; min-height: 0; }

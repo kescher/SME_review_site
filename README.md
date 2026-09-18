@@ -4,8 +4,8 @@ A static web app for subject-matter expert review of AI legal-assistance
 transcripts, across five domains: bankruptcy, immigration, personal injury,
 family law and foreclosure.
 
-Each reviewer signs in, reads a project overview, then a page introducing the
-first case, then works through its five transcripts — the conversation PDF on the
+Each reviewer signs in, chooses their area of expertise, reads a project
+overview, then a page introducing the first case, then works through its five transcripts — the conversation PDF on the
 left, the turn-by-turn rubric and questions on the right. After the fifth, the
 next case's page appears. The judicial opinion behind each case is one click
 away throughout, from the case page and from the progress rail. After the last transcript there is a closing page for
@@ -75,9 +75,11 @@ tools/
   google-auth.mjs      service-account JWT, no npm dependencies
   ui/welcome.js        the project overview page
   ui/final.js          the closing page
+  ui/domain.js         the area-of-expertise chooser
   ui/opinion.js        the judicial-opinion overlay
 assets/                project_overview.pdf, offered as a download
 cases/                 judicial opinion PDFs, matched to cases by name
+opinions.json          optional: pin an opinion whose file name is unhelpful
 transcripts/           PDFs and the per-domain review documents
 data/study.json        generated; commit it
 reviewers.json         roster, if you are not using the sheet
@@ -93,5 +95,9 @@ reviewers.json         roster, if you are not using the sheet
   header if blind review matters.
 - Model and condition are recorded in each answer document alongside the
   reviewer's text, so results stay attributable.
+- Reviewers pick their own area of expertise and can switch from the header;
+  progress is tracked separately per area.
 - Progress saves as reviewers type and resumes on any device — the answer doc is
-  the record of what has already been submitted.
+  the record of what has already been submitted. Submitted answers are also kept
+  locally, so returning to an earlier transcript shows what was written; that
+  part is per-browser, not per-account.

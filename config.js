@@ -10,18 +10,29 @@ export const CONFIG = {
   /* -- Google OAuth ------------------------------------------------------ */
   // OAuth 2.0 Web Application client ID from Google Cloud Console.
   // Authorised JavaScript origin must include your GitHub Pages URL.
-  CLIENT_ID: '',
+  CLIENT_ID: '711515548082-afm59b0jgon9t9732r9njuhr43lfi76g.apps.googleusercontent.com',
 
-  // Scopes requested from the reviewer's own Google account. Trim this to the
-  // minimum your setup actually needs — fewer scopes means a milder consent
-  // screen. With DATA_SOURCE 'static' and PDFs bundled by `--pdfs`, only
-  // openid/email/profile, drive.file and documents are required.
+// client secret: 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
+
+  // Scopes requested from the reviewer's own Google account.
+  //
+  // This is the minimum the app actually uses: case data comes from
+  // data/study.json and the PDFs are served from the repo, so nothing here
+  // reads the reviewer's Drive or your spreadsheet at runtime. Keeping it this
+  // short matters — `drive.readonly` is one of Google's *restricted* scopes,
+  // and asking for it is what would pull you into a verification review and a
+  // third-party security assessment.
+  //
+  // `drive.file` only grants access to files this app itself creates, which is
+  // exactly the reviewer's own answer document.
+  //
+  // Switching DATA_SOURCE back to 'sheets', or serving transcripts from Drive
+  // rather than the repo, would need 'spreadsheets.readonly' and
+  // 'drive.readonly' added back here.
   SCOPES: [
-    'openid', 'email', 'profile',                            // who is reviewing
-    'https://www.googleapis.com/auth/spreadsheets.readonly', // rubric + roster
-    'https://www.googleapis.com/auth/drive.readonly',        // transcript PDFs
-    'https://www.googleapis.com/auth/drive.file',            // the answer doc
-    'https://www.googleapis.com/auth/documents',             // write answers
+    'openid', 'email', 'profile',                     // who is reviewing
+    'https://www.googleapis.com/auth/drive.file',     // create + file the answer doc
+    'https://www.googleapis.com/auth/documents',      // write into it
   ].join(' '),
 
   /* -- Source data ------------------------------------------------------- */
@@ -50,9 +61,17 @@ export const CONFIG = {
   PDF_FOLDER_ID: '',
 
   /* -- Answer output ----------------------------------------------------- */
-  // Drive folder the generated answer docs are moved into. Reviewers need
-  // edit access to it; leave blank to keep docs in the reviewer's own Drive.
-  RESPONSES_FOLDER_ID: '',
+  // Drive folder every reviewer's answer document is moved into.
+  //
+  // Reviewers need *Editor* access to this folder for the move to succeed, and
+  // Drive has no write-only folder — so each reviewer can open the folder and
+  // read every other reviewer's answers. That is an accepted trade for keeping
+  // all responses in one place you own. Use ADMIN_EMAIL instead if reviewers
+  // must not see each other.
+  //
+  // The id is the last path segment of the folder's URL:
+  //   https://drive.google.com/drive/folders/<THIS PART>
+  RESPONSES_FOLDER_ID: '1EQhT-6zpQ-6xb59OTMtvwPOOXzdbsVgJ',
 
   // Address given writer access to every answer doc. Leave blank to skip.
   ADMIN_EMAIL: '',

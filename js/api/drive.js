@@ -47,12 +47,29 @@ export async function findDocByName(name) {
   return res.files?.[0]?.id || null;
 }
 
-/** Move a newly created doc into the shared responses folder. */
+/**
+ * Move a newly created doc into the shared responses folder.
+ *
+ * Removes whatever parents the file actually has rather than assuming 'root',
+ * which Drive rejects when the file is not there.
+ */
 export async function moveToFolder(fileId, folderId) {
   if (!folderId) return;
-  await apiJson(
-    `${FILES}/${fileId}?addParents=${folderId}&removeParents=root` +
-    `&supportsAllDrives=true&fields=id`, 'PATCH', {});
+
+  const meta = await api(
+    `${FILES}/${fileId}?fields=parents&supportsAllDrives=true`);
+  const remove = (meta.parents || []).filter(p => p !== folderId);
+
+  if (remove.length === 0 && (meta.parents || []).includes(folderId)) return;
+
+  const params = new URLSearchParams({
+    addParents: folderId,
+    supportsAllDrives: 'true',
+    fields: 'id',
+  });
+  if (remove.length) params.set('removeParents', remove.join(','));
+
+  await apiJson(`${FILES}/${fileId}?${params}`, 'PATCH', {});
 }
 
 /** Give the study administrator write access to a reviewer's doc. */

@@ -3,14 +3,16 @@
 import { CONFIG } from '../config.js';
 import { $, el, clear, toast } from './util.js';
 import * as auth from './auth.js';
-import { loadAssignment, NotOnRoster, NotConfigured } from './data/schema.js';
+import { loadReviewer, NotOnRoster, NotConfigured } from './data/schema.js';
 import {
   state, attachDoc, nextStop, caseComplete, allComplete, reset,
   welcomeSeen, markWelcomeSeen, finalSubmitted,
+  selectDomain, hasDomain, storedDomain,
 } from './data/store.js';
 import { renderLogin } from './ui/login.js';
 import { renderWelcome } from './ui/welcome.js';
 import { renderFinal } from './ui/final.js';
+import { renderDomain } from './ui/domain.js';
 import { renderInstructions } from './ui/instructions.js';
 import { renderReview } from './ui/review.js';
 import { renderDone } from './ui/done.js';
@@ -45,25 +47,45 @@ const go = hash => { location.hash = hash; };
 /* -- session -------------------------------------------------------------- */
 
 async function startSession() {
+  // Two phases, reported separately: the study data is a static file and never
+  // touches Google, so a Google error here is always the document step.
   busy('Loading your assignment…');
   try {
-    const { reviewer, cases } = await loadAssignment(auth.profile);
+    const { study, reviewer, domains, suggested } = await loadReviewer(auth.profile);
+    state.study = study;
     state.reviewer = reviewer;
-    state.cases = cases;
-
-    busy('Opening your review document…');
-    await attachDoc();
-
-    loginError = '';
-    route(true);
+    state.domains = domains;
+    state.suggested = suggested;
   } catch (err) {
-    console.error(err);
-    loginError = (err instanceof NotOnRoster || err instanceof NotConfigured)
-      ? err.message
-      : `Could not load the study data. ${err.message || err}`;
-    auth.signOut();
-    render();
+    return failSession(err, 'Could not load the study data.');
   }
+
+  busy('Opening your review document…');
+  try {
+    await attachDoc();
+  } catch (err) {
+    return failSession(err, 'Could not open your review document in Google.');
+  }
+
+  // Restore a previous choice; otherwise the chooser is the first screen.
+  selectDomain(storedDomain());
+
+  loginError = '';
+  route(true);
+}
+
+function failSession(err, prefix) {
+  console.error(err);
+
+  loginError = (err instanceof NotOnRoster || err instanceof NotConfigured)
+    ? err.message
+    : `${prefix} ${err.message || err}`;
+
+  // Keep the granted consent: these failures are nearly always configuration,
+  // and the reviewer should be able to retry with one click.
+  auth.signOut({ revoke: false });
+  reset();
+  render();
 }
 
 async function signIn() {
@@ -94,11 +116,12 @@ function parseHash() {
 
 /** Send the reviewer to wherever they left off. */
 function resume() {
+  // Area of expertise first, then the project overview, then the cases.
+  if (!hasDomain()) return go('#/domain');
+  if (!welcomeSeen()) return go('#/welcome');
+
   const stop = nextStop();
   if (!stop) return go(finalSubmitted() ? '#/done' : '#/final');
-
-  // The project overview comes before the first case, once.
-  if (!welcomeSeen()) return go('#/welcome');
 
   go(stop.fresh
     ? `#/instructions/${encodeURIComponent(stop.caseId)}`
@@ -107,6 +130,7 @@ function resume() {
 
 /** Where the overview's "Begin the review" button leads. */
 function firstStop() {
+  if (!hasDomain()) return '#/domain';
   const stop = nextStop();
   if (!stop) return finalSubmitted() ? '#/done' : '#/final';
   return stop.fresh
@@ -125,6 +149,16 @@ function route(replaceIfEmpty = false) {
   const { screen, caseId, index } = parseHash();
 
   if (!screen || (replaceIfEmpty && screen === '')) return resume();
+
+  if (screen === 'domain') {
+    return mount(renderDomain({
+      onSignOut: signOut,
+      onChosen: () => go(welcomeSeen() ? firstStop() : '#/welcome'),
+    }));
+  }
+
+  // Every other screen needs a domain.
+  if (!hasDomain()) return resume();
 
   if (screen === 'welcome') {
     return mount(renderWelcome({

@@ -3,26 +3,27 @@
 import { CONFIG } from '../../config.js';
 import { el, toast, debounce } from '../util.js';
 import {
-  state, counts, getDraft, saveDraft, submitFinal, finalSubmitted, FINAL_REF,
+  state, counts, getAnswers, saveAnswers, submitFinal, finalSubmitted, finalRef,
 } from '../data/store.js';
 import { topbar } from './components.js';
 import { createEditor, isEmpty } from './editor.js';
 
 export function renderFinal({ onDone, onSignOut }) {
   const { total } = counts();
-  const draft = getDraft(FINAL_REF);
+  const ref = finalRef();
+  const saved = getAnswers(ref);
   const answers = {};
 
-  const saveNote = el('div', { class: 'save' }, draft._at ? 'Draft restored' : '');
+  const saveNote = el('div', { class: 'save' }, saved._at ? 'Draft restored' : '');
 
   const persist = debounce(() => {
-    saveDraft(FINAL_REF, answers);
+    saveAnswers(ref, answers);
     saveNote.textContent = 'Draft saved';
     saveNote.classList.add('ok');
   }, 600);
 
   const fields = CONFIG.FINAL_QUESTIONS.map(q => {
-    answers[q.id] = draft[q.id] || '';
+    answers[q.id] = saved[q.id] || '';
 
     const editor = createEditor({
       value: answers[q.id],

@@ -57,13 +57,36 @@ distinctive words with legal boilerplate (`the`, `v`, `inc`, `bar`, `assn`,
 `counsel`…) ignored, so trailing spaces, expanded abbreviations and appended
 citations all still match. Ambiguous matches are reported rather than guessed.
 
-**Name each file after the case**, as the case overview page titles it. A file
-named for its docket number (`671675.pdf`) will not match anything; the builder
-lists every unmatched file and every case left without an opinion.
+Nesting does not matter — `cases/<Domain>/x.pdf`, `cases/cases/<Domain>/x.pdf`
+and a flat `cases/x.pdf` all work, since the domain is taken from whichever path
+component names one.
 
-Reviewers reach the opinion from a button on the case page and from one in the
-progress rail, which stays visible through all five transcripts. It opens in an
-overlay over the review screen, with an "open in new tab" link.
+**Name each file after the case**, as the case overview page titles it. The
+builder lists every unmatched file and every case left without an opinion.
+
+For a file whose name cannot identify the case — a download named after its
+docket number, say — pin it in `opinions.json` at the project root instead of
+renaming:
+
+```json
+{
+  "Disciplinary Couns. v. Foreclosure Alternatives, Inc.": "cases/Foreclosure/671675.pdf"
+}
+```
+
+Keys are the case title exactly as the builder prints it, or `<domain>/<case-id>`
+(e.g. `foreclosure/case-1`). Keys beginning with `_` are ignored, so you can
+leave comments. Paths work written from the project root or from inside
+`cases/`.
+
+The rubric parsed from each case's `### Rubric` table is shown twice: on the
+case page, in a table pairing each of the three requests with its No UPL / Yes
+UPL criteria, and again beside every transcript while reviewing.
+
+Reviewers reach the opinion two ways, both labelled **Read judicial opinion**:
+a link near the top of the case page, and a button beside the case name in the
+progress rail, which stays visible through all five transcripts. Either opens an
+overlay over the current screen, with an "open in new tab" link.
 
 Cases with no opinion simply show no button — nothing else changes.
 
@@ -82,6 +105,10 @@ the wording freely but leave ids alone once reviewing has started.
 
 ## 5. The reviewer roster
 
+Reviewers **choose their own area of expertise** after signing in, so the roster
+is an allowlist plus a default, not an assignment. A reviewer may switch areas
+from the header at any time; progress is tracked per area.
+
 Either edit `reviewers.json`:
 
 ```json
@@ -91,13 +118,15 @@ Either edit `reviewers.json`:
 ```
 
 `domain` must be one of `bankruptcy`, `immigration`, `personal_injury`,
-`family_law`, `foreclosure`.
+`family_law`, `foreclosure`. It is shown on the chooser as "Assigned to you" and
+preselected, but the reviewer may pick any area. Leave it blank to express no
+preference.
 
 Or keep it on a `Reviewers` tab in the spreadsheet with `email`, `name` and
 `domain` columns, and use `--sheet` below.
 
-> The roster decides which domain a reviewer is shown. It is not a security
-> boundary — see [Access](#access).
+> The roster decides who may sign in, not what they review. It is not a
+> security boundary either — see [Access](#access).
 
 ---
 
@@ -130,20 +159,87 @@ the column names and I will adjust the matching.
 
 ## 7. OAuth client, so reviewers can sign in
 
-1. **APIs & Services → OAuth consent screen** → External. Fill in the app name
-   and support email.
-2. Scopes: `openid`, `email`, `profile`, `.../auth/drive.file`,
-   `.../auth/documents`. Nothing more — the PDFs are served from the repo, so
-   no Drive read scope is needed.
-3. Add every reviewer under **Test users**.
-4. **Credentials → Create credentials → OAuth client ID → Web application.**
-   Under **Authorised JavaScript origins** add your Pages URL
-   (`https://<you>.github.io`) and `http://localhost:4173` for local testing.
-5. Put the client ID in `config.js`, and trim `SCOPES` to match step 2.
+Google renamed this area to **Google Auth Platform**. Direct links below, since
+the left-hand nav moves around.
 
-> While the consent screen is in **Testing**, Google shows an "unverified app"
-> warning and allows up to 100 test users. For a known set of reviewers that is
-> the right place to stay.
+### a. Project and APIs
+
+<https://console.cloud.google.com/apis/library> — pick or create a project, then
+enable:
+
+- **Google Docs API**
+- **Google Drive API**
+- **Google Sheets API** (only if you run `--sheet` for the gold labels)
+
+### b. Configure the auth platform
+
+<https://console.cloud.google.com/auth/overview>
+
+If it has never been set up, click **Get started** and complete four steps:
+
+| Step | What to enter |
+|---|---|
+| App Information | App name (e.g. `UPLBench SME Review`), your support email |
+| Audience | **External** |
+| Contact Information | your email |
+| Finish | agree, Create |
+
+### c. Add the reviewers as test users
+
+<https://console.cloud.google.com/auth/audience>
+
+Confirm **User type: External**, **Publishing status: Testing**, then under
+**Test users → Add users** add every reviewer's Google address, plus your own.
+
+Leave it in Testing. Publishing starts a verification review you do not need for
+a study of this size. Testing allows up to 100 users.
+
+### d. Declare the scopes
+
+<https://console.cloud.google.com/auth/scopes> → **Add or remove scopes**
+
+```
+openid
+https://www.googleapis.com/auth/userinfo.email
+https://www.googleapis.com/auth/userinfo.profile
+https://www.googleapis.com/auth/drive.file
+https://www.googleapis.com/auth/documents
+```
+
+Nothing else. `drive.readonly` is a *restricted* scope and would pull you into a
+verification review and a third-party security assessment; the app does not use
+it. These must match `CONFIG.SCOPES` in `config.js`.
+
+### e. Create the client
+
+<https://console.cloud.google.com/auth/clients> → **Create client**
+
+- **Application type:** Web application
+- **Name:** anything
+- **Authorised JavaScript origins:**
+  ```
+  http://localhost:4173
+  https://<your-github-username>.github.io
+  ```
+- **Authorised redirect URIs:** leave empty
+
+Origins are scheme + host only — no path, no trailing slash. Even when the site
+is served at `https://you.github.io/sme-review/`, the origin is
+`https://you.github.io`. A path here makes Google reject the sign-in.
+
+Copy the client ID (`…​.apps.googleusercontent.com`) into `CONFIG.CLIENT_ID`. It
+is not a secret; it ships in the JavaScript and is safe to commit.
+
+### If "External" is unavailable
+
+A Workspace organisation can restrict projects to Internal only. Internal limits
+sign-in to that domain, which will not work for outside reviewers. Create the
+project under a personal Google account instead — everything else is identical.
+
+### First sign-in
+
+Testing-mode apps show an "unverified app" warning. Reviewers click **Advanced →
+Continue**. Warn them in advance so it does not look broken.
 
 ---
 
@@ -162,13 +258,41 @@ Enable Pages once under **Settings → Pages → Source: GitHub Actions**.
 
 ### Where answers go
 
-One doc per reviewer, `SME Review — Name (email)`, created in their Drive, then
-moved into `RESPONSES_FOLDER_ID` (give reviewers **Editor** access to that
-folder) and shared with `ADMIN_EMAIL`. Set at least one, or the docs stay in
-each reviewer's own Drive where you cannot read them.
+Each reviewer gets one doc, `SME Review — Name (email)`, created by **their own**
+Google account — which is why it starts in their Drive, not yours. Two settings
+move it somewhere you can reach:
+
+```js
+RESPONSES_FOLDER_ID: '<folder id>',   // move the doc into a folder you own
+ADMIN_EMAIL: '',                      // or: share the doc with you in place
+```
+
+Set neither and the answers are stranded across ten separate Drives.
+
+**This study uses the folder**, already set in `config.js`:
+
+```js
+RESPONSES_FOLDER_ID: '1EQhT-6zpQ-6xb59OTMtvwPOOXzdbsVgJ',
+```
+
+**Share that folder with every reviewer as Editor** before the study opens.
+Viewer is not enough — the move needs write access, and without it the doc stays
+in the reviewer's own Drive.
+
+Filing is best-effort by design: if the move fails, the reviewer sees a warning
+but carries on, and their answers are still recorded in a document you can
+collect afterwards. A failed move never blocks a review.
+
+> Editor access is required for the move to succeed, and Drive has no
+> write-only folder. **Every reviewer can therefore open the folder and read
+> every other reviewer's answers**, including their names, which are in the
+> document titles. This was a considered trade for keeping all responses in one
+> place. If reviewers must not see each other, leave `RESPONSES_FOLDER_ID`
+> blank and set `ADMIN_EMAIL` instead: the docs then stay in each reviewer's own
+> Drive, shared only with you.
 
 Each submission records the reviewer's three answers plus a provenance line with
-the model and condition.
+the model and condition. The closing page is appended once at the end.
 
 ---
 
@@ -182,9 +306,10 @@ case data is served as static files with no access control of its own.
   people with repository access — which needs a paid GitHub plan. If the
   repository is ever made public, every transcript, rubric and gold label
   becomes public with it.
-- **Answer docs** are written by each reviewer's own Google account. Only they
-  and whoever you share the responses folder with can read them. This is a real
-  boundary, independent of the repository.
+- **Answer docs** are written by each reviewer's own Google account and moved
+  into your responses folder. Everyone with access to that folder — you and all
+  reviewers — can read them. Reviewers are not isolated from each other by
+  design; see "Where answers go".
 - **The roster** decides what the app shows someone. It is baked into
   `study.json`, so it is an assignment list, not a security control.
 - **`?demo=1`** lets anyone who can load the site walk the flow without signing
@@ -213,5 +338,7 @@ account's `client_email`.
 **Nothing loads; console shows an origin error** — the Pages URL is not listed
 under Authorised JavaScript origins on the OAuth client.
 
-**Answers save but you cannot find the docs** — neither `RESPONSES_FOLDER_ID`
-nor `ADMIN_EMAIL` is set.
+**Answers save but you cannot find the docs** — the reviewer probably lacks
+Editor access to the responses folder, so the move failed and the doc stayed in
+their Drive. They would have seen a warning after signing in; the browser
+console records the underlying Drive error.

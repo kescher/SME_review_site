@@ -125,12 +125,17 @@ async function fetchProfile() {
   };
 }
 
-export function signOut() {
-  if (!CONFIG.DEMO && token?.access_token && window.google?.accounts?.oauth2) {
+/**
+ * `revoke: false` drops the local session but leaves the granted consent in
+ * place, so a retry after a configuration error costs one click rather than a
+ * full re-authorisation.
+ */
+export function signOut({ revoke = true } = {}) {
+  if (revoke && !CONFIG.DEMO && token?.access_token && window.google?.accounts?.oauth2) {
     try { google.accounts.oauth2.revoke(token.access_token, () => {}); } catch { /* noop */ }
   }
   token = null;
   profile = null;
   try { sessionStorage.removeItem(KEY); } catch { /* noop */ }
-  toast('Signed out.');
+  if (revoke) toast('Signed out.');
 }

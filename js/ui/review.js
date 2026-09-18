@@ -1,15 +1,15 @@
 /* The review screen: transcript on the left, rubric and questions on the right. */
 
 import { CONFIG } from '../../config.js';
-import { el, toast, debounce, escapeHtml } from '../util.js';
-import { state, getDraft, saveDraft, isSubmitted, submitAnswers } from '../data/store.js';
+import { el, toast, debounce, escapeHtml, fmtTime } from '../util.js';
+import { state, getAnswers, saveAnswers, isSubmitted, submitAnswers } from '../data/store.js';
 import { topbar, rail } from './components.js';
 import { createPdfViewer } from './pdfviewer.js';
 import { createEditor, isEmpty } from './editor.js';
 
 export function renderReview({ theCase, index, onDone, onSignOut, onNavigate }) {
   const transcript = theCase.transcripts[index];
-  const draft = getDraft(transcript.ref);
+  const saved = getAnswers(transcript.ref);
   const answers = {};
   const editors = {};
 
@@ -39,16 +39,16 @@ export function renderReview({ theCase, index, onDone, onSignOut, onNavigate }) 
   ]);
 
   /* -- questions --------------------------------------------------------- */
-  const saveNote = el('div', { class: 'save' }, draft._at ? 'Draft restored' : '');
+  const saveNote = el('div', { class: 'save' }, savedLabel(saved));
 
   const persist = debounce(() => {
-    saveDraft(transcript.ref, answers);
+    saveAnswers(transcript.ref, answers);
     saveNote.textContent = 'Draft saved';
     saveNote.classList.add('ok');
   }, 600);
 
   const fields = CONFIG.QUESTIONS.map(q => {
-    answers[q.id] = draft[q.id] || '';
+    answers[q.id] = saved[q.id] || '';
 
     const editor = createEditor({
       value: answers[q.id],
@@ -108,7 +108,9 @@ export function renderReview({ theCase, index, onDone, onSignOut, onNavigate }) 
 
   const heading = el('div', { class: 'qhead' }, [
     el('strong', {}, `Transcript ${transcript.number} of ${theCase.transcripts.length}`),
-    isSubmitted(transcript.ref) ? ' · already submitted — resubmitting appends a new entry' : '',
+    isSubmitted(transcript.ref)
+      ? ' · submitted — your answers are shown below; resubmitting appends a new entry'
+      : '',
   ]);
 
   const questionPane = el('div', { class: 'pane-q' }, [
@@ -178,4 +180,11 @@ function rubricBody(cell) {
   ].filter(Boolean);
 
   return parts.length ? parts : [el('div', { class: 'rbody' }, cell.text || '')];
+}
+
+/** What the footer says about previously stored answers. */
+function savedLabel(saved) {
+  if (saved._submittedAt) return `Submitted ${fmtTime(new Date(saved._submittedAt))}`;
+  if (saved._at) return 'Draft restored';
+  return '';
 }

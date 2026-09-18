@@ -24,7 +24,9 @@ export function opinionButton(theCase, { className = 'btn ghost', label } = {}) 
 
 export function openOpinion(theCase) {
   if (!hasOpinion(theCase)) return;
-  if (openOverlay) close();
+  // Close whatever is already open — its own close, not this call's, which is
+  // not initialised yet.
+  openOverlay?.close();
 
   const restoreFocus = document.activeElement;
 
