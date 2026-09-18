@@ -10,7 +10,7 @@ export const CONFIG = {
   /* -- Google OAuth ------------------------------------------------------ */
   // OAuth 2.0 Web Application client ID from Google Cloud Console.
   // Authorised JavaScript origin must include your GitHub Pages URL.
-  CLIENT_ID: '711515548082-afm59b0jgon9t9732r9njuhr43lfi76g.apps.googleusercontent.com',
+  CLIENT_ID: '711515548082-1g7tnji6h7rklteo4a36sj7tsla5f4gi.apps.googleusercontent.com',
 
   // Scopes requested from the reviewer's own Google account.
   //
